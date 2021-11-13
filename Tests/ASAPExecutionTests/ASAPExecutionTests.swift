@@ -20,7 +20,7 @@ final class ASAPExecutionTests : XCTestCase {
 		var cond = false
 		var witness = false
 		t.sync{
-			ASAPExecution.when({ nTries += 1; return cond }(), do: { witness = true }, endHandler: { _ in t.cancel() })
+			ASAPExecution.when({ nTries += 1; return cond }(), do: { _ in witness = true }, endHandler: { _ in t.cancel() })
 		}
 		
 		XCTAssertFalse(witness)
@@ -46,7 +46,7 @@ final class ASAPExecutionTests : XCTestCase {
 		var nTries = 0
 		t.start()
 		t.sync{
-			ASAPExecution.when({ nTries += 1; return false }(), do: { }, endHandler: { _ in t.cancel() }, maxTryCount: 3)
+			ASAPExecution.when({ nTries += 1; return false }(), do: { _ in }, endHandler: { _ in t.cancel() }, maxTryCount: 3)
 		}
 		
 		let r = XCTWaiter().wait(for: [exitExpectation], timeout: 0.25)

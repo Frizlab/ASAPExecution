@@ -5,7 +5,7 @@ import Foundation
 public final class ASAPExecution<R> {
 	
 	@discardableResult
-	public static func when(_ condition: @autoclosure @escaping () -> Bool, do block: @escaping () -> R, endHandler: ((_ result: R?) -> Void)? = nil, retryDelay: TimeInterval? = nil, runLoop: RunLoop = .current, runLoopModes: [RunLoop.Mode] = [.default], maxTryCount: Int? = nil, skipSyncTry: Bool = false) -> ASAPExecution<R>? {
+	public static func when(_ condition: @autoclosure @escaping () -> Bool, do block: @escaping (_ isAsyncCall: Bool) -> R, endHandler: ((_ result: R?) -> Void)? = nil, retryDelay: TimeInterval? = nil, runLoop: RunLoop = .current, runLoopModes: [RunLoop.Mode] = [.default], maxTryCount: Int? = nil, skipSyncTry: Bool = false) -> ASAPExecution<R>? {
 		return when(
 			condition(), doThrowing: block,
 			endHandler: { endHandler?($0?.success /* success will never be nil, but not unwrapping because $0 might. */) },
@@ -15,11 +15,11 @@ public final class ASAPExecution<R> {
 	}
 	
 	@discardableResult
-	public static func when(_ condition: @autoclosure @escaping () -> Bool, doThrowing block: @escaping () throws -> R, endHandler: ((_ result: Result<R, Error>?) -> Void)? = nil, retryDelay: TimeInterval? = nil, runLoop: RunLoop = .current, runLoopModes: [RunLoop.Mode] = [.default], maxTryCount: Int? = nil, skipSyncTry: Bool = false) -> ASAPExecution<R>? {
+	public static func when(_ condition: @autoclosure @escaping () -> Bool, doThrowing block: @escaping (_ isAsyncCall: Bool) throws -> R, endHandler: ((_ result: Result<R, Error>?) -> Void)? = nil, retryDelay: TimeInterval? = nil, runLoop: RunLoop = .current, runLoopModes: [RunLoop.Mode] = [.default], maxTryCount: Int? = nil, skipSyncTry: Bool = false) -> ASAPExecution<R>? {
 		/* We avoid an allocation if condition is already true (happy and probably most common path). */
 		if !skipSyncTry, condition() {
-			do    {let ret = try block(); endHandler?(.success(ret))}
-			catch {                       endHandler?(.failure(error))}
+			do    {let ret = try block(false); endHandler?(.success(ret))}
+			catch {                            endHandler?(.failure(error))}
 			return nil
 		}
 		
@@ -33,7 +33,7 @@ public final class ASAPExecution<R> {
 	}
 	
 	var condition: () -> Bool
-	var block: () throws -> R
+	var block: (_ isAsyncCall: Bool) throws -> R
 	var endHandler: ((_ result: Result<R, Error>?) -> Void)?
 	
 	var retryDelay: TimeInterval?
@@ -45,7 +45,7 @@ public final class ASAPExecution<R> {
 	var maxTryCount: Int?
 	
 	init(
-		condition: @escaping () -> Bool, block: @escaping () throws -> R, endHandler: ((Result<R, Error>?) -> Void)?,
+		condition: @escaping () -> Bool, block: @escaping (_ isAsyncCall: Bool) throws -> R, endHandler: ((Result<R, Error>?) -> Void)?,
 		retryDelay: TimeInterval?,
 		runLoop: RunLoop, runLoopModes: [RunLoop.Mode],
 		currentTry: Int, maxTryCount: Int?)
@@ -89,8 +89,8 @@ public final class ASAPExecution<R> {
 		
 		currentTry += 1
 		if condition() {
-			do    {let ret = try block(); endHandler?(.success(ret))}
-			catch {                       endHandler?(.failure(error))}
+			do    {let ret = try block(true); endHandler?(.success(ret))}
+			catch {                           endHandler?(.failure(error))}
 			usingItself = nil
 		} else {
 			scheduleNextTry()
