@@ -1,0 +1,16 @@
+{
+  "object": {
+    "pins": [
+      {
+        "package": "RunLoopThread",
+        "repositoryURL": "https://github.com/happn-tech/RunLoopThread.git",
+        "state": {
+          "branch": null,
+          "revision": "34e1ddd70f1a9798610e572d9c5790bf5cd4a75f",
+          "version": "1.0.0"
+        }
+      }
+    ]
+  },
+  "version": 1
+}

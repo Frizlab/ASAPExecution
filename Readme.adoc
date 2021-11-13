@@ -1,0 +1,9 @@
+= ASAPExecution
+François Lamboley <fload@me.com>
+
+Execute a block as soon as possible.
+
+== Why?
+When you cannot observe a given condition, use an ASAP execution.
+In general if you have to use this, it’s a code smell.
+Sometimes there are no other options possible though.
