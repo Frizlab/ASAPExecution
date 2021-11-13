@@ -5,7 +5,7 @@ import Foundation
 public final class ASAPExecution<R> {
 	
 	@discardableResult
-	public static func when(_ condition: @autoclosure @escaping () -> Bool, do block: @escaping () -> R, endHandler: ((_ result: R?) -> Void)?, retryDelay: TimeInterval? = nil, runLoop: RunLoop = .current, runLoopModes: [RunLoop.Mode] = [.default], maxTryCount: Int? = nil, skipSyncTry: Bool = false) -> ASAPExecution<R>? {
+	public static func when(_ condition: @autoclosure @escaping () -> Bool, do block: @escaping () -> R, endHandler: ((_ result: R?) -> Void)? = nil, retryDelay: TimeInterval? = nil, runLoop: RunLoop = .current, runLoopModes: [RunLoop.Mode] = [.default], maxTryCount: Int? = nil, skipSyncTry: Bool = false) -> ASAPExecution<R>? {
 		return when(
 			condition(), doThrowing: block,
 			endHandler: { endHandler?($0?.success /* success will never be nil, but not unwrapping because $0 might. */) },
@@ -15,7 +15,7 @@ public final class ASAPExecution<R> {
 	}
 	
 	@discardableResult
-	public static func when(_ condition: @autoclosure @escaping () -> Bool, doThrowing block: @escaping () throws -> R, endHandler: ((_ result: Result<R, Error>?) -> Void)?, retryDelay: TimeInterval? = nil, runLoop: RunLoop = .current, runLoopModes: [RunLoop.Mode] = [.default], maxTryCount: Int? = nil, skipSyncTry: Bool = false) -> ASAPExecution<R>? {
+	public static func when(_ condition: @autoclosure @escaping () -> Bool, doThrowing block: @escaping () throws -> R, endHandler: ((_ result: Result<R, Error>?) -> Void)? = nil, retryDelay: TimeInterval? = nil, runLoop: RunLoop = .current, runLoopModes: [RunLoop.Mode] = [.default], maxTryCount: Int? = nil, skipSyncTry: Bool = false) -> ASAPExecution<R>? {
 		/* We avoid an allocation if condition is already true (happy and probably most common path). */
 		if !skipSyncTry, condition() {
 			do    {let ret = try block(); endHandler?(.success(ret))}
