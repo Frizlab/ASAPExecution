@@ -38,6 +38,22 @@ final class ASAPExecutionTests : XCTestCase {
 		XCTAssertEqual(r, .completed)
 	}
 	
+	func testMaxTryCount() async throws {
+		let t = RunLoopThread(name: "me.frizlab.asap-execution.test-basic-usage")
+		
+		let exitExpectation = XCTNSNotificationExpectation(name: .NSThreadWillExit, object: t)
+		
+		var nTries = 0
+		t.start()
+		t.sync{
+			ASAPExecution.when({ nTries += 1; return false }(), do: { }, endHandler: { _ in t.cancel() }, maxTryCount: 3)
+		}
+		
+		let r = XCTWaiter().wait(for: [exitExpectation], timeout: 0.25)
+		XCTAssertEqual(r, .completed)
+		XCTAssertEqual(nTries, 3)
+	}
+	
 	@objc
 	private class Witness : NSObject {
 		@objc dynamic var value: NSNumber = 0
