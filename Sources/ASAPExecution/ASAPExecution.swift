@@ -2,12 +2,39 @@ import Foundation
 
 
 
-/* I don’t think this should be public, except maybe if we want to be able to cancel an ASAP execution… */
-class ASAPExecution<R> {
+public final class ASAPExecution<R> {
+	
+	@discardableResult
+	public static func when(_ condition: @autoclosure @escaping () -> Bool, do block: @escaping () -> R, endHandler: ((_ result: R?) -> Void)?, retryDelay: TimeInterval? = nil, runLoop: RunLoop = .current, runLoopModes: [RunLoop.Mode] = [.default], maxTryCount: Int? = nil, skipSyncTry: Bool = false) -> ASAPExecution<R>? {
+		return when(
+			condition(), doThrowing: block,
+			endHandler: { endHandler?($0?.success /* success will never be nil, but not unwrapping because $0 might. */) },
+			retryDelay: retryDelay, runLoop: runLoop, runLoopModes: runLoopModes,
+			maxTryCount: maxTryCount, skipSyncTry: skipSyncTry
+		)
+	}
+	
+	@discardableResult
+	public static func when(_ condition: @autoclosure @escaping () -> Bool, doThrowing block: @escaping () throws -> R, endHandler: ((_ result: Result<R, Error>?) -> Void)?, retryDelay: TimeInterval? = nil, runLoop: RunLoop = .current, runLoopModes: [RunLoop.Mode] = [.default], maxTryCount: Int? = nil, skipSyncTry: Bool = false) -> ASAPExecution<R>? {
+		/* We avoid an allocation if condition is already true (happy and probably most common path). */
+		if !skipSyncTry, condition() {
+			do    {let ret = try block(); endHandler?(.success(ret))}
+			catch {                       endHandler?(.failure(error))}
+			return nil
+		}
+		
+		/* The ASAPExecution holds a strong reference to itself; no need to keep a hold of it. */
+		return ASAPExecution(
+			condition: condition, block: block, endHandler: endHandler,
+			retryDelay: retryDelay,
+			runLoop: runLoop, runLoopModes: runLoopModes,
+			currentTry: skipSyncTry ? 1 : 2, maxTryCount: maxTryCount
+		)
+	}
 	
 	var condition: () -> Bool
 	var block: () throws -> R
-	var completion: ((_ result: Result<R, Error>?) -> Void)?
+	var endHandler: ((_ result: Result<R, Error>?) -> Void)?
 	
 	var retryDelay: TimeInterval?
 	
@@ -18,14 +45,14 @@ class ASAPExecution<R> {
 	var maxTryCount: Int?
 	
 	init(
-		condition: @escaping () -> Bool, block: @escaping () throws -> R, completion: ((Result<R, Error>?) -> Void)?,
+		condition: @escaping () -> Bool, block: @escaping () throws -> R, endHandler: ((Result<R, Error>?) -> Void)?,
 		retryDelay: TimeInterval?,
 		runLoop: RunLoop, runLoopModes: [RunLoop.Mode],
 		currentTry: Int, maxTryCount: Int?)
 	{
 		self.condition = condition
 		self.block = block
-		self.completion = completion
+		self.endHandler = endHandler
 		self.retryDelay = retryDelay
 		self.runLoop = runLoop
 		self.runLoopModes = runLoopModes
@@ -56,11 +83,23 @@ class ASAPExecution<R> {
 	
 	private func runNextTry() {
 		if condition() {
-			do    {let ret = try block(); completion?(.success(ret))}
-			catch {                       completion?(.failure(error))}
+			do    {let ret = try block(); endHandler?(.success(ret))}
+			catch {                       endHandler?(.failure(error))}
 			usingItself = nil
 		} else {
 			scheduleNextTry()
+		}
+	}
+	
+}
+
+
+private extension Result {
+	
+	var success: Success? {
+		switch self {
+			case .failure:        return nil
+			case .success(let s): return s
 		}
 	}
 	

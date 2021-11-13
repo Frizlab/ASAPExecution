@@ -20,7 +20,7 @@ final class ASAPExecutionTests : XCTestCase {
 		var cond = false
 		var witness = false
 		t.sync{
-			frz_executeASAP({ nTries += 1; return cond }(), { witness = true; t.cancel() }, completion: nil)
+			ASAPExecution.when({ nTries += 1; return cond }(), do: { witness = true }, endHandler: { _ in t.cancel() })
 		}
 		
 		XCTAssertFalse(witness)

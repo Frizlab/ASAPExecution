@@ -4,7 +4,7 @@ import PackageDescription
 
 let package = Package(
 	name: "ASAPExecution",
-	platforms: [.macOS(.v10_12), .iOS(.v15), .tvOS(.v15), .watchOS(.v8)],
+	platforms: [.macOS(.v10_12), .iOS(.v10), .tvOS(.v10), .watchOS(.v3)],
 	products: [.library(name: "ASAPExecution", targets: ["ASAPExecution"])],
 	dependencies: [.package(url: "https://github.com/happn-tech/RunLoopThread.git", from: "1.0.0")],
 	targets: [
