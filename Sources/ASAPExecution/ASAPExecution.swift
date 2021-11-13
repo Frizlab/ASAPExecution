@@ -82,6 +82,12 @@ public final class ASAPExecution<R> {
 	}
 	
 	private func runNextTry() {
+		guard currentTry <= maxTryCount ?? .max else {
+			endHandler?(nil)
+			return
+		}
+		
+		currentTry += 1
 		if condition() {
 			do    {let ret = try block(); endHandler?(.success(ret))}
 			catch {                       endHandler?(.failure(error))}
