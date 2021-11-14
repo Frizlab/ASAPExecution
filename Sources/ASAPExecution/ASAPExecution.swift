@@ -58,19 +58,19 @@ public final class ASAPExecution<R> {
 //		}
 //	}
 	
-	var condition: () -> Bool
-	var block: (_ isAsyncCall: Bool) throws -> R
-	var endHandler: ((_ result: Result<R, Error>?) -> Void)?
+	internal var condition: () -> Bool
+	internal var block: (_ isAsyncCall: Bool) throws -> R
+	internal var endHandler: ((_ result: Result<R, Error>?) -> Void)?
 	
-	var retryDelay: TimeInterval?
+	internal var retryDelay: TimeInterval?
 	
-	var runLoop: RunLoop
-	var runLoopModes: [RunLoop.Mode]
+	internal var runLoop: RunLoop
+	internal var runLoopModes: [RunLoop.Mode]
 	
-	var currentTry: Int
-	var maxTryCount: Int?
+	internal var currentTry: Int
+	internal var maxTryCount: Int?
 	
-	init(
+	internal init(
 		condition: @escaping () -> Bool, block: @escaping (_ isAsyncCall: Bool) throws -> R, endHandler: ((Result<R, Error>?) -> Void)?,
 		retryDelay: TimeInterval?,
 		runLoop: RunLoop, runLoopModes: [RunLoop.Mode],
