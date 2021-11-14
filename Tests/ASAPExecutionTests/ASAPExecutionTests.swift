@@ -7,10 +7,9 @@ import RunLoopThread
 
 
 
-@available(macOS 12.0, iOS 15.0, tvOS 15.0, watchOS 8.0, *)
 final class ASAPExecutionTests : XCTestCase {
 	
-	func testBasicUsage() async throws {
+	func testBasicUsage() throws {
 		let t = RunLoopThread(name: "me.frizlab.asap-execution.test-basic-usage")
 		t.start()
 		
@@ -25,12 +24,12 @@ final class ASAPExecutionTests : XCTestCase {
 		
 		XCTAssertFalse(witness)
 		
-		await Task.sleep(250 * 1_000_000)
+		Thread.sleep(forTimeInterval: 0.25)
 		XCTAssertFalse(witness)
 		
 		cond = true
 		
-		await Task.sleep(250 * 1_000_000)
+		Thread.sleep(forTimeInterval: 0.250)
 		XCTAssertTrue(witness)
 		XCTAssertGreaterThan(nTries, 5/* In 250ms 5 tries have to have been tried at least! Said he, licking his finger… */)
 		
@@ -38,8 +37,8 @@ final class ASAPExecutionTests : XCTestCase {
 		XCTAssertEqual(r, .completed)
 	}
 	
-	func testMaxTryCount() async throws {
-		let t = RunLoopThread(name: "me.frizlab.asap-execution.test-basic-usage")
+	func testMaxTryCount() throws {
+		let t = RunLoopThread(name: "me.frizlab.asap-execution.test-max-try-count")
 		
 		let exitExpectation = XCTNSNotificationExpectation(name: .NSThreadWillExit, object: t)
 		
