@@ -92,7 +92,7 @@ public final class ASAPExecution<R> {
 	}
 	
 	deinit {
-		NSLog("Deinit happened for an ASAPExecution")
+//		NSLog("Deinit happened for an ASAPExecution")
 	}
 	
 	private var usingItself: ASAPExecution<R>?
