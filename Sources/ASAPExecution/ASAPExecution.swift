@@ -32,6 +32,32 @@ public final class ASAPExecution<R> {
 		)
 	}
 	
+	/* Async implementation disabled because I’m not convinced they can actually be useful.*/
+	
+//	@available(macOS 12.0, iOS 15.0, tvOS 15.0, watchOS 8.0, *)
+//	public static func when(_ condition: @autoclosure @escaping () -> Bool, do block: @escaping (_ isAsyncCall: Bool) -> R, retryDelay: TimeInterval? = nil, runLoop: RunLoop = .current, runLoopModes: [RunLoop.Mode] = [.default], maxTryCount: Int? = nil, skipSyncTry: Bool = false) async -> R? {
+//		await withCheckedContinuation{ continuation in
+//			when(
+//				condition(), do: block, endHandler: { continuation.resume(returning: $0) },
+//				retryDelay: retryDelay,
+//				runLoop: runLoop, runLoopModes: runLoopModes,
+//				maxTryCount: maxTryCount, skipSyncTry: skipSyncTry
+//			)
+//		}
+//	}
+//
+//	@available(macOS 12.0, iOS 15.0, tvOS 15.0, watchOS 8.0, *)
+//	public static func when(_ condition: @autoclosure @escaping () -> Bool, doThrowing block: @escaping (_ isAsyncCall: Bool) -> R, retryDelay: TimeInterval? = nil, runLoop: RunLoop = .current, runLoopModes: [RunLoop.Mode] = [.default], maxTryCount: Int? = nil, skipSyncTry: Bool = false) async throws -> R? {
+//		try await withCheckedThrowingContinuation{ continuation in
+//			when(
+//				condition(), doThrowing: block, endHandler: { continuation.resume(with: $0?.map{ $0 as R? } ?? .success(nil)) },
+//				retryDelay: retryDelay,
+//				runLoop: runLoop, runLoopModes: runLoopModes,
+//				maxTryCount: maxTryCount, skipSyncTry: skipSyncTry
+//			)
+//		}
+//	}
+	
 	var condition: () -> Bool
 	var block: (_ isAsyncCall: Bool) throws -> R
 	var endHandler: ((_ result: Result<R, Error>?) -> Void)?
