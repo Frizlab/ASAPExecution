@@ -2,13 +2,14 @@ import Foundation
 
 
 
+/* Note: A fun thing to do later (when Swift allows it) would be to try and reimplement this as an actor using a custom executor. */
 public final class ASAPExecution<R> {
 	
 	@discardableResult
 	public static func when(_ condition: @autoclosure @escaping () -> Bool, do block: @escaping (_ isAsyncCall: Bool) -> R, endHandler: ((_ result: R?) -> Void)? = nil, retryDelay: TimeInterval? = nil, runLoop: RunLoop = .current, runLoopModes: [RunLoop.Mode] = [.default], maxTryCount: Int? = nil, skipSyncTry: Bool = false) -> ASAPExecution<R>? {
 		return when(
 			condition(), doThrowing: block,
-			endHandler: { endHandler?($0?.success /* success will never be nil, but not unwrapping because $0 might. */) },
+			endHandler: { endHandler?($0?.success /* success will never be nil, but not force-unwrapping because $0 might. */) },
 			retryDelay: retryDelay, runLoop: runLoop, runLoopModes: runLoopModes,
 			maxTryCount: maxTryCount, skipSyncTry: skipSyncTry
 		)
@@ -87,7 +88,7 @@ public final class ASAPExecution<R> {
 		
 		/* --- Variables are all init’d here --- */
 		
-		self.usingItself = self
+		self.usingMe = self
 		scheduleNextTry()
 	}
 	
@@ -95,22 +96,62 @@ public final class ASAPExecution<R> {
 //		NSLog("Deinit happened for an ASAPExecution")
 	}
 	
-	private var usingItself: ASAPExecution<R>?
+	public func cancel() {
+		runLoop.perform(inModes: runLoopModes, block: {
+			/* If we’re already cancelled, we have nothing to do. */
+			guard !self.isCancelled else {
+				return
+			}
+			
+			/* Mark execution as cancelled. */
+			self.isCancelled = true
+			
+			/* Invalidate next try timer if any. */
+			self.timer?.invalidate()
+			self.timer = nil
+			
+			/* We force run the next try so that the handler is called and the cleanup is done. */
+			self.runNextTry()
+		})
+	}
 	
+	private var usingMe: ASAPExecution<R>?
+	
+	private var timer: Timer?
+	private var isCancelled: Bool = false
+	
+	/* This method is called:
+	 *    - At init time, on any runloop, thread, whatever;
+	 *    - Once the ASAPExecution has been init, always on the execution runloop.
+	 * Thanks to this, we know we can modify the timer variable w/o any locks as it is always modified on the runloop. */
 	private func scheduleNextTry() {
 		if let retryDelay = retryDelay {
-			let timer = Timer(timeInterval: retryDelay, repeats: false, block: { t in t.invalidate() /* Probably unneeded */; self.runNextTry() })
-			for mode in runLoopModes {runLoop.add(timer, forMode: mode)}
+			let t = Timer(timeInterval: retryDelay, repeats: false, block: { t in
+				assert(t === self.timer)
+				self.timer = nil
+				t.invalidate() /* Probably unneeded */
+				
+				self.runNextTry()
+			})
+			assert(timer == nil)
+			timer = t
+			for mode in runLoopModes {runLoop.add(t, forMode: mode)}
 		} else {
-			/* We schedule immediately. */
+			/* We schedule immediately… on next run loop. */
 			runLoop.perform(inModes: runLoopModes, block: runNextTry)
 		}
 	}
 	
 	private func runNextTry() {
-		guard currentTry <= maxTryCount ?? .max else {
-			endHandler?(nil)
-			usingItself = nil
+		guard !isCancelled, currentTry <= maxTryCount ?? .max else {
+			/* If the ASAPExecution has no retry delay and is cancelled,
+			 * the run next try function might be called more than once with isCancelled set to true.
+			 * To prevent calling the end handler more than once, we verify usingMe is not nil before calling it. */
+			if usingMe != nil {
+				assert(usingMe === self)
+				endHandler?(nil)
+				usingMe = nil
+			}
 			return
 		}
 		
@@ -118,7 +159,8 @@ public final class ASAPExecution<R> {
 		if condition() {
 			do    {let ret = try block(true); endHandler?(.success(ret))}
 			catch {                           endHandler?(.failure(error))}
-			usingItself = nil
+			assert(usingMe === self)
+			usingMe = nil
 		} else {
 			scheduleNextTry()
 		}
