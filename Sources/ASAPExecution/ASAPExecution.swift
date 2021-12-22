@@ -32,7 +32,7 @@ public final class ASAPExecution<R> {
 		)
 	}
 	
-	/* Async implementation disabled because I’m not convinced they can actually be useful.*/
+	/* Async implementations disabled because I’m not convinced they can actually be useful.*/
 	
 //	@available(macOS 12.0, iOS 15.0, tvOS 15.0, watchOS 8.0, *)
 //	public static func when(_ condition: @autoclosure @escaping () -> Bool, do block: @escaping (_ isAsyncCall: Bool) -> R, retryDelay: TimeInterval? = nil, runLoop: RunLoop = .current, runLoopModes: [RunLoop.Mode] = [.default], maxTryCount: Int? = nil, skipSyncTry: Bool = false) async -> R? {
