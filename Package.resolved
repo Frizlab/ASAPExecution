@@ -3,11 +3,11 @@
     "pins": [
       {
         "package": "RunLoopThread",
-        "repositoryURL": "https://github.com/happn-tech/RunLoopThread.git",
+        "repositoryURL": "https://github.com/happn-app/RunLoopThread.git",
         "state": {
           "branch": null,
-          "revision": "34e1ddd70f1a9798610e572d9c5790bf5cd4a75f",
-          "version": "1.0.0"
+          "revision": "a876b9c79c2f51c49ae39ecd083c40740aba1d7f",
+          "version": "1.1.0"
         }
       }
     ]

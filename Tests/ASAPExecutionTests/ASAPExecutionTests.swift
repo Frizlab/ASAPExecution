@@ -18,7 +18,7 @@ final class ASAPExecutionTests : XCTestCase {
 		var nTries = 0
 		var cond = false
 		var witness = false
-		t.sync{
+		_ = t.sync{
 			ASAPExecution.when({ nTries += 1; return cond }(), do: { _ in witness = true }, endHandler: { _ in t.cancel() })
 		}
 		
@@ -37,6 +37,33 @@ final class ASAPExecutionTests : XCTestCase {
 		XCTAssertEqual(r, .completed)
 	}
 	
+	func testCancellation() throws {
+		let t = RunLoopThread(name: "me.frizlab.asap-execution.test-cancellation")
+		t.start()
+		
+		let exitExpectation = XCTNSNotificationExpectation(name: .NSThreadWillExit, object: t)
+		
+		var nEnd = 0
+		var witness = false
+		let execution = try XCTUnwrap(t.sync{
+			ASAPExecution.when(false, do: { _ in witness = true }, endHandler: { _ in nEnd += 1; t.cancel() })
+		})
+		
+		XCTAssertFalse(witness)
+		
+		Thread.sleep(forTimeInterval: 0.25)
+		XCTAssertFalse(witness)
+		
+		execution.cancel()
+		
+		Thread.sleep(forTimeInterval: 0.250)
+		XCTAssertFalse(witness)
+		XCTAssertEqual(nEnd, 1)
+		
+		let r = XCTWaiter().wait(for: [exitExpectation], timeout: 0.25)
+		XCTAssertEqual(r, .completed)
+	}
+	
 	func testMaxTryCount() throws {
 		let t = RunLoopThread(name: "me.frizlab.asap-execution.test-max-try-count")
 		
@@ -44,7 +71,7 @@ final class ASAPExecutionTests : XCTestCase {
 		
 		var nTries = 0
 		t.start()
-		t.sync{
+		_ = t.sync{
 			ASAPExecution.when({ nTries += 1; return false }(), do: { _ in }, endHandler: { _ in t.cancel() }, maxTryCount: 3)
 		}
 		
