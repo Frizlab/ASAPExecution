@@ -110,6 +110,7 @@ public final class ASAPExecution<R> {
 	private func runNextTry() {
 		guard currentTry <= maxTryCount ?? .max else {
 			endHandler?(nil)
+			usingItself = nil
 			return
 		}
 		
