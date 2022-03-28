@@ -26,10 +26,36 @@ public final class ASAPExecution<R> {
 		
 		/* The ASAPExecution holds a strong reference to itself; no need to keep a hold of it. */
 		return ASAPExecution(
-			condition: condition, block: block, endHandler: endHandler,
+			stopCondition: condition,
+			untilConditionBlock: { _ in },
+			whenConditionBlock: block,
+			endHandler: endHandler,
 			retryDelay: retryDelay,
 			runLoop: runLoop, runLoopModes: runLoopModes,
 			currentTry: skipSyncTry ? 1 : 2, maxTryCount: maxTryCount
+		)
+	}
+	
+	@discardableResult
+	public static func until(_ condition: @autoclosure @escaping () -> Bool, do block: @escaping (_ isAsyncCall: Bool) -> Void, endHandler: ((_ cancelledOrReachedMaxRunCount: Bool) -> Void)? = nil, delay: TimeInterval? = nil, runLoop: RunLoop = .current, runLoopModes: [RunLoop.Mode] = [.default], maxRunCount: Int? = nil, skipSyncRun: Bool = false) -> ASAPExecution<R>? where R == Void {
+		/* We avoid an allocation if condition is already true. */
+		if !skipSyncRun {
+			guard !condition() else {
+				endHandler?(false)
+				return nil
+			}
+			block(false)
+		}
+		
+		/* The ASAPExecution holds a strong reference to itself; no need to keep a hold of it. */
+		return ASAPExecution(
+			stopCondition: condition,
+			untilConditionBlock: block,
+			whenConditionBlock: { _ in },
+			endHandler: { v in endHandler?(v == nil) },
+			retryDelay: delay,
+			runLoop: runLoop, runLoopModes: runLoopModes,
+			currentTry: skipSyncRun ? 1 : 2, maxTryCount: maxRunCount
 		)
 	}
 	
@@ -59,8 +85,9 @@ public final class ASAPExecution<R> {
 //		}
 //	}
 	
-	internal var condition: () -> Bool
-	internal var block: (_ isAsyncCall: Bool) throws -> R
+	internal var stopCondition: () -> Bool
+	internal var untilConditionBlock: (_ isAsyncCall: Bool) -> Void
+	internal var whenConditionBlock: (_ isAsyncCall: Bool) throws -> R
 	internal var endHandler: ((_ result: Result<R, Error>?) -> Void)?
 	
 	internal var retryDelay: TimeInterval?
@@ -72,13 +99,17 @@ public final class ASAPExecution<R> {
 	internal var maxTryCount: Int?
 	
 	internal init(
-		condition: @escaping () -> Bool, block: @escaping (_ isAsyncCall: Bool) throws -> R, endHandler: ((Result<R, Error>?) -> Void)?,
+		stopCondition: @escaping () -> Bool,
+		untilConditionBlock: @escaping (_ isAsyncCall: Bool) -> Void,
+		whenConditionBlock: @escaping (_ isAsyncCall: Bool) throws -> R,
+		endHandler: ((Result<R, Error>?) -> Void)?,
 		retryDelay: TimeInterval?,
 		runLoop: RunLoop, runLoopModes: [RunLoop.Mode],
 		currentTry: Int, maxTryCount: Int?)
 	{
-		self.condition = condition
-		self.block = block
+		self.stopCondition = stopCondition
+		self.untilConditionBlock = untilConditionBlock
+		self.whenConditionBlock = whenConditionBlock
 		self.endHandler = endHandler
 		self.retryDelay = retryDelay
 		self.runLoop = runLoop
@@ -88,7 +119,7 @@ public final class ASAPExecution<R> {
 		
 		/* --- Variables are all init’d here --- */
 		
-		self.usingMe = self
+		usingMe = self
 		scheduleNextTry()
 	}
 	
@@ -156,12 +187,13 @@ public final class ASAPExecution<R> {
 		}
 		
 		currentTry += 1
-		if condition() {
-			do    {let ret = try block(true); endHandler?(.success(ret))}
-			catch {                           endHandler?(.failure(error))}
+		if stopCondition() {
+			do    {let ret = try whenConditionBlock(true); endHandler?(.success(ret))}
+			catch {                                        endHandler?(.failure(error))}
 			assert(usingMe === self)
 			usingMe = nil
 		} else {
+			untilConditionBlock(true)
 			scheduleNextTry()
 		}
 	}

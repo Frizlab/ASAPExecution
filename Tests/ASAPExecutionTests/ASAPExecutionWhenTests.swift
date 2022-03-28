@@ -7,10 +7,10 @@ import RunLoopThread
 
 
 
-final class ASAPExecutionTests : XCTestCase {
+final class ASAPExecutionWhenTests : XCTestCase {
 	
 	func testBasicUsage() throws {
-		let t = RunLoopThread(name: "me.frizlab.asap-execution.test-basic-usage")
+		let t = RunLoopThread(name: "me.frizlab.asap-execution-when.test-basic-usage")
 		t.start()
 		
 		let exitExpectation = XCTNSNotificationExpectation(name: .NSThreadWillExit, object: t)
@@ -38,7 +38,7 @@ final class ASAPExecutionTests : XCTestCase {
 	}
 	
 	func testCancellation() throws {
-		let t = RunLoopThread(name: "me.frizlab.asap-execution.test-cancellation")
+		let t = RunLoopThread(name: "me.frizlab.asap-execution-when.test-cancellation")
 		t.start()
 		
 		let exitExpectation = XCTNSNotificationExpectation(name: .NSThreadWillExit, object: t)
@@ -65,7 +65,7 @@ final class ASAPExecutionTests : XCTestCase {
 	}
 	
 	func testMaxTryCount() throws {
-		let t = RunLoopThread(name: "me.frizlab.asap-execution.test-max-try-count")
+		let t = RunLoopThread(name: "me.frizlab.asap-execution-when.test-max-try-count")
 		
 		let exitExpectation = XCTNSNotificationExpectation(name: .NSThreadWillExit, object: t)
 		
