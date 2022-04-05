@@ -6,53 +6,116 @@ import Foundation
 public final class ASAPExecution<R> {
 	
 	@discardableResult
-	public static func when(_ condition: @autoclosure @escaping () -> Bool, do block: @escaping (_ isAsyncCall: Bool) -> R, endHandler: ((_ result: R?) -> Void)? = nil, retryDelay: TimeInterval? = nil, runLoop: RunLoop = .current, runLoopModes: [RunLoop.Mode] = [.default], maxTryCount: Int? = nil, skipSyncTry: Bool = false) -> ASAPExecution<R>? {
-		return when(
-			condition(), doThrowing: block,
-			endHandler: { endHandler?($0?.success /* success will never be nil, but not force-unwrapping because $0 might. */) },
-			retryDelay: retryDelay, runLoop: runLoop, runLoopModes: runLoopModes,
-			maxTryCount: maxTryCount, skipSyncTry: skipSyncTry
+	public static func when(
+		_ condition: @autoclosure @escaping () -> Bool,
+		do block: @escaping (_ isAsyncCall: Bool) -> R,
+		endHandler: ((_ result: R?) -> Void)? = nil,
+		retryDelay: TimeInterval? = nil,
+		runLoop: RunLoop = .current,
+		runLoopModes: [RunLoop.Mode] = [.default],
+		maxTryCount: Int? = nil,
+		skipSyncTry: Bool = false
+	) -> ASAPExecution<R>? {
+		return until(
+			condition(),
+			do: { _ in },
+			thenThrowing: block,
+			endHandler: { endHandler?($0?.success! /* Clever bit: The forced unwrap is only done when $0 is non-nil. We know success can never be nil (because the “then” block cannot throw). */) },
+			delay: retryDelay, runLoop: runLoop, runLoopModes: runLoopModes,
+			maxRunCount: maxTryCount, skipSyncRun: skipSyncTry
 		)
 	}
 	
 	@discardableResult
-	public static func when(_ condition: @autoclosure @escaping () -> Bool, doThrowing block: @escaping (_ isAsyncCall: Bool) throws -> R, endHandler: ((_ result: Result<R, Error>?) -> Void)? = nil, retryDelay: TimeInterval? = nil, runLoop: RunLoop = .current, runLoopModes: [RunLoop.Mode] = [.default], maxTryCount: Int? = nil, skipSyncTry: Bool = false) -> ASAPExecution<R>? {
-		/* We avoid an allocation if condition is already true (happy and probably most common path). */
-		if !skipSyncTry, condition() {
-			do    {let ret = try block(false); endHandler?(.success(ret))}
-			catch {                            endHandler?(.failure(error))}
-			return nil
-		}
-		
-		/* The ASAPExecution holds a strong reference to itself; no need to keep a hold of it. */
-		return ASAPExecution(
-			stopCondition: condition,
-			untilConditionBlock: { _ in },
-			whenConditionBlock: block,
+	public static func when(
+		_ condition: @autoclosure @escaping () -> Bool,
+		doThrowing block: @escaping (_ isAsyncCall: Bool) throws -> R,
+		endHandler: ((_ result: Result<R, Error>?) -> Void)? = nil,
+		retryDelay: TimeInterval? = nil,
+		runLoop: RunLoop = .current,
+		runLoopModes: [RunLoop.Mode] = [.default],
+		maxTryCount: Int? = nil,
+		skipSyncTry: Bool = false
+	) -> ASAPExecution<R>? {
+		return until(
+			condition(),
+			do: { _ in },
+			thenThrowing: block,
 			endHandler: endHandler,
-			retryDelay: retryDelay,
-			runLoop: runLoop, runLoopModes: runLoopModes,
-			currentTry: skipSyncTry ? 1 : 2, maxTryCount: maxTryCount
+			delay: retryDelay, runLoop: runLoop, runLoopModes: runLoopModes,
+			maxRunCount: maxTryCount, skipSyncRun: skipSyncTry
 		)
 	}
 	
 	@discardableResult
-	public static func until(_ condition: @autoclosure @escaping () -> Bool, do block: @escaping (_ isAsyncCall: Bool) -> Void, endHandler: ((_ cancelledOrReachedMaxRunCount: Bool) -> Void)? = nil, delay: TimeInterval? = nil, runLoop: RunLoop = .current, runLoopModes: [RunLoop.Mode] = [.default], maxRunCount: Int? = nil, skipSyncRun: Bool = false) -> ASAPExecution<R>? where R == Void {
+	public static func until(
+		_ condition: @autoclosure @escaping () -> Bool,
+		do block: @escaping (_ isAsyncCall: Bool) -> Void,
+		endHandler: ((_ cancelledOrReachedMaxRunCount: Bool) -> Void)? = nil,
+		delay: TimeInterval? = nil,
+		runLoop: RunLoop = .current,
+		runLoopModes: [RunLoop.Mode] = [.default],
+		maxRunCount: Int? = nil,
+		skipSyncRun: Bool = false
+	) -> ASAPExecution<R>? where R == Void {
+		return until(
+			condition(), do: block, thenThrowing: { _ in },
+			endHandler: { v in endHandler?(v == nil) },
+			delay: delay,
+			runLoop: runLoop, runLoopModes: runLoopModes,
+			maxRunCount: maxRunCount,
+			skipSyncRun: skipSyncRun
+		)
+	}
+	
+	@discardableResult
+	public static func until(
+		_ condition: @autoclosure @escaping () -> Bool,
+		do blockUntil: @escaping (_ isAsyncCall: Bool) -> Void,
+		then blockThen: @escaping (_ isAsyncCall: Bool) -> R,
+		endHandler: ((_ result: R?) -> Void)? = nil,
+		delay: TimeInterval? = nil,
+		runLoop: RunLoop = .current,
+		runLoopModes: [RunLoop.Mode] = [.default],
+		maxRunCount: Int? = nil,
+		skipSyncRun: Bool = false
+	) -> ASAPExecution<R>? {
+		return until(
+			condition(), do: blockUntil, thenThrowing: blockThen,
+			endHandler: { endHandler?($0?.success!) },
+			delay: delay, runLoop: runLoop, runLoopModes: runLoopModes,
+			maxRunCount: maxRunCount, skipSyncRun: skipSyncRun
+		)
+	}
+	
+	@discardableResult
+	public static func until(
+		_ condition: @autoclosure @escaping () -> Bool,
+		do blockUntil: @escaping (_ isAsyncCall: Bool) -> Void,
+		thenThrowing blockThen: @escaping (_ isAsyncCall: Bool) throws -> R,
+		endHandler: ((_ result: Result<R, Error>?) -> Void)? = nil,
+		delay: TimeInterval? = nil,
+		runLoop: RunLoop = .current,
+		runLoopModes: [RunLoop.Mode] = [.default],
+		maxRunCount: Int? = nil,
+		skipSyncRun: Bool = false
+	) -> ASAPExecution<R>? {
 		/* We avoid an allocation if condition is already true. */
 		if !skipSyncRun {
 			guard !condition() else {
-				endHandler?(false)
+				do    {let ret = try blockThen(false); endHandler?(.success(ret))}
+				catch {                                endHandler?(.failure(error))}
 				return nil
 			}
-			block(false)
+			blockUntil(false)
 		}
 		
 		/* The ASAPExecution holds a strong reference to itself; no need to keep a hold of it. */
 		return ASAPExecution(
 			stopCondition: condition,
-			untilConditionBlock: block,
-			whenConditionBlock: { _ in },
-			endHandler: { v in endHandler?(v == nil) },
+			untilConditionBlock: blockUntil,
+			whenConditionBlock: blockThen,
+			endHandler: endHandler,
 			retryDelay: delay,
 			runLoop: runLoop, runLoopModes: runLoopModes,
 			currentTry: skipSyncRun ? 1 : 2, maxTryCount: maxRunCount
